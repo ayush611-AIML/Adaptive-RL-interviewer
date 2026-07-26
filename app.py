@@ -6,7 +6,6 @@ import random
 import init_db
 from agent import InterviewDQN
 from llm import grade_answer
-from streamlit_mic_recorder import speech_to_text
 
 # Safely initialize database on startup
 try:
@@ -126,23 +125,6 @@ def set_premium_background():
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
             margin-bottom: 15px;
-        }
-
-        /* Custom Styling for Mic Recorder Button */
-        div.row-widget.stButton > button {
-            background: rgba(10, 10, 20, 0.8) !important;
-            border: 1px solid rgba(0, 229, 255, 0.4) !important;
-            color: #00e5ff !important;
-            border-radius: 30px !important;
-            padding: 10px 25px !important;
-            box-shadow: 0 0 15px rgba(0, 229, 255, 0.2) !important;
-            transition: all 0.3s ease;
-        }
-        
-        div.row-widget.stButton > button:hover {
-            background: rgba(0, 229, 255, 0.1) !important;
-            border-color: #00e5ff !important;
-            box-shadow: 0 0 25px rgba(0, 229, 255, 0.4) !important;
         }
         
         p, div {
@@ -281,15 +263,100 @@ for role, text in st.session_state.chat_history:
 with st.chat_message("assistant"):
     st.write(next_question)
 
-# ------------- STYLISH CENTERED MIC RECORDER BUTTON -------------
+# ------------- CUSTOM GOOGLE-STYLE MULTI-COLOR MIC COMPONENT -------------
 st.markdown("<br>", unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.markdown("<div style='text-align: center;'>🎙️ <b>Click to Speak Answer</b></div>", unsafe_allow_html=True)
-    user_answer = speech_to_text(language='en', start_prompt="🎙️ Start Recording", stop_prompt="⏹️ Stop Recording", just_once=True, key='STT')
+# We use query params or handle text capture via custom HTML component state bridge
+voice_result = st.text_input("Spoken Answer:", key="spoken_input_bridge", label_visibility="collapsed")
 
-if user_answer:
+components.html(
+    """
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif;">
+        <div id="mic-btn" onclick="toggleListen()" style="
+            width: 75px; height: 75px; border-radius: 50%; 
+            background: rgba(15, 15, 30, 0.9);
+            border: 2px solid rgba(0, 229, 255, 0.4);
+            display: flex; align-items: center; justify-content: center; 
+            cursor: pointer; box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);
+            transition: all 0.3s ease; position: relative;">
+            
+            <!-- Google-Style Multi-Color SVG Mic Icon -->
+            <svg viewBox="0 0 24 24" width="36" height="36">
+                <path fill="#4285F4" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                <path fill="#34A853" d="M11 18.92h2V22h-2z"/>
+                <path fill="#FBBC05" d="M7.05 11.05C6.47 11.63 6 12.47 6 13.5c0 2.21 1.79 4 4 4h4c2.21 0 4-1.79 4-4 0-1.03-.47-1.87-1.05-2.45L16.5 9.5c-.58.58-1.42 1-2.5 1h-4c-1.08 0-1.92-.42-2.5-1l-1.45 1.55z"/>
+                <path fill="#EA4335" d="M19 11h-1.5c0 .83-.34 1.58-.88 2.12l1.06 1.06c.82-.82 1.32-1.96 1.32-3.18z"/>
+            </svg>
+        </div>
+        <p id="status-text" style="color: #a1a1aa; font-size: 13px; margin-top: 10px; letter-spacing: 0.5px;">Click mic to speak</p>
+    </div>
+
+    <script>
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        let isListening = false;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function() {
+                isListening = true;
+                document.getElementById("mic-btn").style.borderColor = "#EA4335";
+                document.getElementById("mic-btn").style.boxShadow = "0 0 25px rgba(234, 67, 53, 0.6)";
+                document.getElementById("status-text").innerText = "Listening... Speak now";
+                document.getElementById("status-text").style.color = "#00e5ff";
+            };
+
+            recognition.onresult = function(event) {
+                const speechToText = event.results[0][0].transcript;
+                
+                // Find Streamlit text input element inside parent doc and pass value
+                const parentDoc = window.parent.document;
+                const textInput = parentDoc.querySelector('input[aria-label="Spoken Answer:"]');
+                if (textInput) {
+                    textInput.value = speechToText;
+                    textInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            };
+
+            recognition.onerror = function() {
+                resetMicState();
+            };
+
+            recognition.onend = function() {
+                resetMicState();
+            };
+        } else {
+            document.getElementById("status-text").innerText = "Speech recognition not supported in this browser.";
+        }
+
+        function toggleListen() {
+            if (!recognition) return;
+            if (!isListening) {
+                recognition.start();
+            } else {
+                recognition.stop();
+            }
+        }
+
+        function resetMicState() {
+            isListening = false;
+            document.getElementById("mic-btn").style.borderColor = "rgba(0, 229, 255, 0.4)";
+            document.getElementById("mic-btn").style.boxShadow = "0 0 20px rgba(0, 229, 255, 0.2)";
+            document.getElementById("status-text").innerText = "Click mic to speak";
+            document.getElementById("status-text").style.color = "#a1a1aa";
+        }
+    </script>
+    """,
+    height=140,
+)
+
+# Read captured voice text from bridge
+if voice_result and len(voice_result.strip()) > 0:
+    user_answer = voice_result
     st.session_state.chat_history.append(("assistant", next_question))
     st.session_state.chat_history.append(("user", user_answer))
     

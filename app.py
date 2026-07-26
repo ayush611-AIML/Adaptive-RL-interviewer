@@ -42,16 +42,16 @@ def fetch_question(tier):
 
 st.title("RL Interviewer")
 
-# ------------- PREMIUM CSS GRADIENT BACKGROUND -------------
+# ------------- SEAMLESS CSS GRADIENT BACKGROUND -------------
 def set_premium_background():
     st.markdown(
         """
         <style>
-        /* Modern, subtle animated gradient background */
+        /* Modern, subtle animated gradient background applied to the very root */
         .stApp {
-            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #020617, #172554);
-            background-size: 400% 400%;
-            animation: gradient 15s ease infinite;
+            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #020617, #172554) !important;
+            background-size: 400% 400% !important;
+            animation: gradient 15s ease infinite !important;
             color: #f8fafc;
         }
 
@@ -61,9 +61,20 @@ def set_premium_background():
             100% { background-position: 0% 50%; }
         }
 
+        /* FORCE ALL BORDERS AND CONTAINERS TO BE TRANSPARENT */
+        [data-testid="stHeader"], 
+        [data-testid="stAppViewContainer"], 
+        [data-testid="stBottom"],
+        .stApp > header,
+        .stAppBottom,
+        footer {
+            background-color: transparent !important;
+            background: transparent !important;
+        }
+
         /* Glassmorphism sidebar */
         [data-testid="stSidebar"] {
-            background-color: rgba(15, 23, 42, 0.4) !important;
+            background-color: rgba(15, 23, 42, 0.2) !important;
             backdrop-filter: blur(15px) !important;
             border-right: 1px solid rgba(255, 255, 255, 0.05);
         }
@@ -100,7 +111,7 @@ def set_premium_background():
 
         /* Input box styling */
         .stChatInputContainer {
-            background-color: rgba(15, 23, 42, 0.8) !important;
+            background-color: rgba(15, 23, 42, 0.6) !important;
             border: 1px solid #38bdf8 !important;
             border-radius: 12px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);

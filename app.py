@@ -55,7 +55,33 @@ def fetch_question(tier):
     
     return f"Tier {tier}: {selected_question[1]}"
 
-
+# --- NEW BACKGROUND STYLING CODE ---
+def set_custom_background():
+    st.markdown(
+        """
+        <style>
+        /* Apply a dark, modern gradient background to the main app area */
+        .stApp {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #f8fafc;
+        }
+        
+        /* Make the sidebar slightly transparent to blend with the background */
+        [data-testid="stSidebar"] {
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Style the chat input box to look more polished */
+        .stChatInputContainer {
+            background-color: rgba(30, 41, 59, 0.7) !important;
+            border: 1px solid #334155 !important;
+            border-radius: 12px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 st.title("RL Interviewer")
 
 with st.sidebar:

@@ -3,7 +3,6 @@ import torch
 import numpy as np
 import sqlite3
 import random
-import base64
 from agent import InterviewDQN
 from llm import grade_answer
 
@@ -43,47 +42,81 @@ def fetch_question(tier):
 
 st.title("RL Interviewer")
 
-# ------------- LOCAL IMAGE BACKGROUND -------------
-def set_local_background(image_path):
-    try:
-        with open(image_path, "rb") as image_file:
-            # Encode the local image into base64
-            encoded_string = base64.b64encode(image_file.read()).decode()
-            
-        st.markdown(
-            f"""
-            <style>
-            .stApp {{
-                /* Updated to handle WEBP type */
-                background-image: url(data:image/webp;base64,{encoded_string});
-                background-size: cover;
-                background-position: center;
-                background-repeat: no-repeat;
-                background-attachment: fixed;
-            }}
-            
-            [data-testid="stAppViewContainer"] {{
-                background-color: rgba(15, 23, 42, 0.75); 
-            }}
-            
-            [data-testid="stSidebar"] {{
-                background-color: rgba(15, 23, 42, 0.85); 
-                backdrop-filter: blur(10px);
-            }}
-            
-            h1, h2, h3, p, label {{
-                color: white !important;
-            }}
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-    except FileNotFoundError:
-        st.error(f"Could not find the background image at: {image_path}")
+# ------------- PREMIUM CSS GRADIENT BACKGROUND -------------
+def set_premium_background():
+    st.markdown(
+        """
+        <style>
+        /* Modern, subtle animated gradient background */
+        .stApp {
+            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #020617, #172554);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            color: #f8fafc;
+        }
 
-# Pointing to the hidden .webp extension
-set_local_background("tech_bg.png.webp") 
-# -------------------------------------------------------
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Glassmorphism sidebar */
+        [data-testid="stSidebar"] {
+            background-color: rgba(15, 23, 42, 0.4) !important;
+            backdrop-filter: blur(15px) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Styling the metrics in the sidebar */
+        [data-testid="stMetricValue"] {
+            font-size: 2.5rem !important;
+            color: #38bdf8 !important;
+            font-weight: 700 !important;
+        }
+        
+        [data-testid="stMetricLabel"] {
+            font-size: 1rem !important;
+            color: #94a3b8 !important;
+        }
+
+        /* Main title styling */
+        h1 {
+            background: -webkit-linear-gradient(45deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800 !important;
+            padding-bottom: 20px;
+        }
+
+        /* Chat bubbles styling */
+        [data-testid="stChatMessage"] {
+            background-color: rgba(30, 41, 59, 0.6);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 10px;
+        }
+
+        /* Input box styling */
+        .stChatInputContainer {
+            background-color: rgba(15, 23, 42, 0.8) !important;
+            border: 1px solid #38bdf8 !important;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        /* Ensure general text remains readable */
+        p, div {
+            color: #e2e8f0;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+set_premium_background()
+# -----------------------------------------------------------
 
 with st.sidebar:
     st.header("Brain State")

@@ -56,7 +56,7 @@ def fetch_question(tier):
     return f"Tier {tier}: {selected_question[1]}"
 
 
-st.title("🚀 Antigravity RL Interviewer")
+st.title("RL Interviewer")
 
 with st.sidebar:
     st.header("Brain State")

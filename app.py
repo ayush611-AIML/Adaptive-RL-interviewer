@@ -42,16 +42,16 @@ def fetch_question(tier):
 
 st.title("RL Interviewer")
 
-# ------------- SEAMLESS CSS GRADIENT BACKGROUND -------------
+# ------------- QUANTUM AI CSS THEME -------------
 def set_premium_background():
     st.markdown(
         """
         <style>
-        /* Modern, subtle animated gradient background applied to the very root */
+        /* Deep, rich shifting background */
         .stApp {
-            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #020617, #172554) !important;
-            background-size: 400% 400% !important;
-            animation: gradient 15s ease infinite !important;
+            background: linear-gradient(135deg, #09090e 0%, #171033 50%, #061e33 100%) !important;
+            background-size: 300% 300% !important;
+            animation: gradient 12s ease infinite !important;
             color: #f8fafc;
         }
 
@@ -73,57 +73,63 @@ def set_premium_background():
             background: transparent !important;
         }
         
-        /* Aggressively target the inner chat container background */
         div[data-testid="stBottom"] > * {
             background-color: transparent !important;
         }
 
-        /* Glassmorphism sidebar */
+        /* Glassmorphism sidebar with slight purple tint */
         [data-testid="stSidebar"] {
-            background-color: rgba(15, 23, 42, 0.2) !important;
-            backdrop-filter: blur(15px) !important;
+            background-color: rgba(20, 15, 40, 0.4) !important;
+            backdrop-filter: blur(20px) !important;
             border-right: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* Styling the metrics in the sidebar */
+        /* Metrics styling - Neon Cyan with text shadow for glow */
         [data-testid="stMetricValue"] {
             font-size: 2.5rem !important;
-            color: #38bdf8 !important;
-            font-weight: 700 !important;
+            color: #00e5ff !important; 
+            font-weight: 800 !important;
+            text-shadow: 0px 0px 15px rgba(0, 229, 255, 0.4);
         }
         
         [data-testid="stMetricLabel"] {
             font-size: 1rem !important;
-            color: #94a3b8 !important;
+            color: #a1a1aa !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        /* Main title styling */
+        /* Main title styling - Vibrant gradient text */
         h1 {
-            background: -webkit-linear-gradient(45deg, #38bdf8, #818cf8);
+            background: -webkit-linear-gradient(45deg, #00e5ff, #b026ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            font-weight: 800 !important;
+            font-weight: 900 !important;
+            letter-spacing: 1.5px;
             padding-bottom: 20px;
         }
 
-        /* Chat bubbles styling */
+        /* Frosted Glass Chat bubbles */
         [data-testid="stChatMessage"] {
-            background-color: rgba(30, 41, 59, 0.6);
-            border-radius: 10px;
-            padding: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.03) !important;
+            backdrop-filter: blur(10px) !important;
+            border-radius: 16px !important;
+            padding: 15px !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
+            margin-bottom: 15px;
         }
 
-        /* Input box styling */
+        /* Glowing Chat Input box */
         .stChatInputContainer {
-            background-color: rgba(15, 23, 42, 0.6) !important;
-            border: 1px solid #38bdf8 !important;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            background: rgba(10, 10, 20, 0.7) !important;
+            border: 1px solid rgba(0, 229, 255, 0.3) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.1) !important;
+            backdrop-filter: blur(10px);
         }
         
-        /* Ensure general text remains readable */
+        /* Ensure general text remains readable and bright */
         p, div {
             color: #e2e8f0;
         }

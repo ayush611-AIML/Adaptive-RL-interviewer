@@ -1,11 +1,18 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import torch
-import numpy as np
 import sqlite3
 import random
+import init_db
 from agent import InterviewDQN
 from llm import grade_answer
+
+# Force database setup on startup to ensure all subjects are always available
+@st.cache_resource
+def init_app():
+    init_db.setup_database()
+
+init_app()
 
 @st.cache_resource
 def load_model():
@@ -23,30 +30,20 @@ if "mu" not in st.session_state:
     st.session_state.chat_history = []
     st.session_state.asked_question_ids = []
 
-# Fetch function now requires the selected subject
 def fetch_question(tier, subject):
     conn = sqlite3.connect('questions.db')
     cursor = conn.cursor()
-    
-    try:
-        # Try to pull questions matching BOTH the tier and the subject
-        cursor.execute("SELECT id, question_text FROM questions WHERE tier = ? AND subject = ?", (tier, subject))
-    except sqlite3.OperationalError:
-        # Fallback just in case the database hasn't been updated yet
-        cursor.execute("SELECT id, question_text FROM questions WHERE tier = ?", (tier,))
-        
-    all_questions = cursor.fetchall()
+    # Strict filtering by both difficulty tier and selected subject
+    cursor.execute("SELECT id, question_text FROM questions WHERE tier = ? AND subject = ?", (tier, subject))
+    available = [q for q in cursor.fetchall() if q[0] not in st.session_state.asked_question_ids]
     conn.close()
     
-    available_questions = [q for q in all_questions if q[0] not in st.session_state.asked_question_ids]
-    
-    if not available_questions:
-        return f"We have run out of {subject} questions for this difficulty level!"
+    if not available:
+        return f"We have run out of questions for {subject} at this difficulty level!"
         
-    selected_question = random.choice(available_questions)
-    st.session_state.asked_question_ids.append(selected_question[0])
-    
-    return f"Tier {tier} ({subject}): {selected_question[1]}"
+    sel = random.choice(available)
+    st.session_state.asked_question_ids.append(sel[0])
+    return sel[1]
 
 st.title("RL Interviewer")
 
@@ -128,12 +125,6 @@ def set_premium_background():
             border-radius: 20px !important;
             box-shadow: 0 0 20px rgba(0, 229, 255, 0.1) !important;
             backdrop-filter: blur(10px);
-        }
-        
-        /* Dropdown styling */
-        .stSelectbox label {
-            color: #00e5ff !important;
-            font-weight: bold;
         }
         
         p, div {
@@ -235,38 +226,26 @@ add_particle_effect()
 # -----------------------------------------------------------
 
 with st.sidebar:
-    st.header("Settings")
-    # New dropdown menu featuring all topics from the syllabus
-    selected_subject = st.selectbox("Interview Subject", [
-        "DSA", 
-        "OOP", 
-        "DBMS", 
-        "Operating System", 
-        "Computer Networks", 
-        "System Design", 
-        "Programming Languages", 
-        "Software Engineering", 
-        "Web Development", 
-        "Projects", 
-        "Machine Learning", 
-        "HR Questions"
-    ])
-    
-    # Allow the user to reset the interview if they change subjects
-    if st.button("🔄 Reset Interview"):
-        st.session_state.mu = 0.0
-        st.session_state.sigma = 3.0
-        st.session_state.questions_asked = 0
-        st.session_state.chat_history = []
-        st.session_state.asked_question_ids = []
-        st.rerun()
-
-    st.markdown("---")
-    
     st.header("Brain State")
     st.metric("Estimated Skill (μ)", f"{st.session_state.mu:.2f}")
     st.metric("Uncertainty (σ)", f"{st.session_state.sigma:.2f}")
     st.metric("Questions Asked", st.session_state.questions_asked)
+    
+    st.markdown("---")
+    
+    selected_subject = st.selectbox(
+        "Select Subject", 
+        [
+            "DSA", "OOP", "DBMS", "Operating System", 
+            "Computer Networks", "System Design", "Programming Languages", 
+            "Software Engineering", "Web Development", "Projects", 
+            "Machine Learning", "HR Questions"
+        ]
+    )
+    
+    if st.button("🔄 Reset Interview"):
+        st.session_state.update(mu=0.0, sigma=3.0, questions_asked=0, chat_history=[], asked_question_ids=[])
+        st.rerun()
 
 current_state = torch.FloatTensor([[st.session_state.mu, st.session_state.sigma, st.session_state.questions_asked]])
 
@@ -274,7 +253,6 @@ if len(st.session_state.chat_history) % 2 == 0:
     with torch.no_grad():
         action = agent(current_state).argmax().item()
     
-    # Pass the selected subject into the fetch function
     st.session_state.current_question = fetch_question(action, selected_subject)
 
 next_question = st.session_state.current_question

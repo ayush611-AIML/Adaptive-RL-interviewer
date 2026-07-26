@@ -7,11 +7,11 @@ import init_db
 from agent import InterviewDQN
 from llm import grade_answer
 
-@st.cache_resource
-def init_app():
+# Safely initialize database on startup without strict resource caching conflicts
+try:
     init_db.setup_database()
-
-init_app()
+except Exception:
+    pass
 
 @st.cache_resource
 def load_model():
@@ -30,7 +30,7 @@ if "mu" not in st.session_state:
     st.session_state.asked_question_ids = []
 
 def fetch_question(tier, subject):
-    conn = sqlite3.connect('questions.db')
+    conn = sqlite3.connect('questions.db', timeout=10)
     cursor = conn.cursor()
     cursor.execute("SELECT id, question_text FROM questions WHERE tier = ? AND subject = ?", (tier, subject))
     available = [q for q in cursor.fetchall() if q[0] not in st.session_state.asked_question_ids]
@@ -235,13 +235,7 @@ add_particle_effect()
 # -----------------------------------------------------------
 
 with st.sidebar:
-    st.header("Brain State")
-    st.metric("Estimated Skill (μ)", f"{st.session_state.mu:.2f}")
-    st.metric("Uncertainty (σ)", f"{st.session_state.sigma:.2f}")
-    st.metric("Questions Asked", st.session_state.questions_asked)
-    
-    st.markdown("---")
-    
+    # Moved Subject Selection to the top left sidebar
     selected_subject = st.selectbox(
         "Select Subject", 
         [
@@ -255,6 +249,12 @@ with st.sidebar:
     if st.button("🔄 Reset Interview"):
         st.session_state.update(mu=0.0, sigma=3.0, questions_asked=0, chat_history=[], asked_question_ids=[])
         st.rerun()
+
+    st.markdown("---")
+    st.header("Brain State")
+    st.metric("Estimated Skill (μ)", f"{st.session_state.mu:.2f}")
+    st.metric("Uncertainty (σ)", f"{st.session_state.sigma:.2f}")
+    st.metric("Questions Asked", st.session_state.questions_asked)
 
 current_state = torch.FloatTensor([[st.session_state.mu, st.session_state.sigma, st.session_state.questions_asked]])
 

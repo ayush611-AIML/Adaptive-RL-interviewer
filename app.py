@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import torch
 import numpy as np
 import sqlite3
@@ -47,7 +48,6 @@ def set_premium_background():
     st.markdown(
         """
         <style>
-        /* Deep, rich shifting background */
         .stApp {
             background: linear-gradient(135deg, #09090e 0%, #171033 50%, #061e33 100%) !important;
             background-size: 300% 300% !important;
@@ -61,7 +61,6 @@ def set_premium_background():
             100% { background-position: 0% 50%; }
         }
 
-        /* FORCE ALL BORDERS AND CONTAINERS TO BE TRANSPARENT */
         [data-testid="stHeader"], 
         [data-testid="stAppViewContainer"], 
         [data-testid="stBottom"],
@@ -77,14 +76,12 @@ def set_premium_background():
             background-color: transparent !important;
         }
 
-        /* Glassmorphism sidebar with slight purple tint */
         [data-testid="stSidebar"] {
             background-color: rgba(20, 15, 40, 0.4) !important;
             backdrop-filter: blur(20px) !important;
             border-right: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* Metrics styling - Neon Cyan with text shadow for glow */
         [data-testid="stMetricValue"] {
             font-size: 2.5rem !important;
             color: #00e5ff !important; 
@@ -99,7 +96,6 @@ def set_premium_background():
             letter-spacing: 1px;
         }
 
-        /* Main title styling - Vibrant gradient text */
         h1 {
             background: -webkit-linear-gradient(45deg, #00e5ff, #b026ff);
             -webkit-background-clip: text;
@@ -109,7 +105,6 @@ def set_premium_background():
             padding-bottom: 20px;
         }
 
-        /* Frosted Glass Chat bubbles */
         [data-testid="stChatMessage"] {
             background: rgba(255, 255, 255, 0.03) !important;
             backdrop-filter: blur(10px) !important;
@@ -120,7 +115,6 @@ def set_premium_background():
             margin-bottom: 15px;
         }
 
-        /* Glowing Chat Input box */
         .stChatInputContainer {
             background: rgba(10, 10, 20, 0.7) !important;
             border: 1px solid rgba(0, 229, 255, 0.3) !important;
@@ -129,7 +123,6 @@ def set_premium_background():
             backdrop-filter: blur(10px);
         }
         
-        /* Ensure general text remains readable and bright */
         p, div {
             color: #e2e8f0;
         }
@@ -139,6 +132,103 @@ def set_premium_background():
     )
 
 set_premium_background()
+
+# ------------- INTERACTIVE CURSOR PARTICLES -------------
+def add_particle_effect():
+    components.html(
+        """
+        <script>
+            // We inject the canvas into the parent window so it covers the whole Streamlit app
+            const parentDoc = window.parent.document;
+            
+            // Only add the canvas if it doesn't already exist (prevents duplicates on reload)
+            if (!parentDoc.getElementById("quantum-particles")) {
+                const canvas = parentDoc.createElement("canvas");
+                canvas.id = "quantum-particles";
+                canvas.style.position = "fixed";
+                canvas.style.top = "0";
+                canvas.style.left = "0";
+                canvas.style.width = "100vw";
+                canvas.style.height = "100vh";
+                canvas.style.pointerEvents = "none"; // Allows clicking through the canvas
+                canvas.style.zIndex = "99999";
+                parentDoc.body.appendChild(canvas);
+
+                const ctx = canvas.getContext("2d");
+                let particlesArray = [];
+                
+                // Adjust canvas size to window
+                function resize() {
+                    canvas.width = window.parent.innerWidth;
+                    canvas.height = window.parent.innerHeight;
+                }
+                window.parent.addEventListener("resize", resize);
+                resize();
+
+                const mouse = { x: undefined, y: undefined };
+                
+                // Track mouse movement
+                window.parent.addEventListener("mousemove", function(event) {
+                    mouse.x = event.x;
+                    mouse.y = event.y;
+                    // Spawn 4 particles every time the mouse moves
+                    for (let i = 0; i < 4; i++) { 
+                        particlesArray.push(new Particle());
+                    }
+                });
+
+                class Particle {
+                    constructor() {
+                        this.x = mouse.x;
+                        this.y = mouse.y;
+                        this.size = Math.random() * 4 + 1; // Random size
+                        this.speedX = Math.random() * 3 - 1.5; // Spread out X
+                        this.speedY = Math.random() * 3 - 1.5; // Spread out Y
+                        // 50/50 chance for Cyan or Purple to match the theme
+                        this.color = Math.random() > 0.5 ? '#00e5ff' : '#b026ff';
+                    }
+                    update() {
+                        this.x += this.speedX;
+                        this.y += this.speedY;
+                        // Shrink over time
+                        if (this.size > 0.1) this.size -= 0.05;
+                    }
+                    draw() {
+                        ctx.fillStyle = this.color;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                function handleParticles() {
+                    for (let i = 0; i < particlesArray.length; i++) {
+                        particlesArray[i].update();
+                        particlesArray[i].draw();
+                        
+                        // Remove particle when it gets too small
+                        if (particlesArray[i].size <= 0.1) {
+                            particlesArray.splice(i, 1);
+                            i--;
+                        }
+                    }
+                }
+
+                function animate() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    handleParticles();
+                    window.parent.requestAnimationFrame(animate);
+                }
+                
+                animate();
+            }
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+add_particle_effect()
 # -----------------------------------------------------------
 
 with st.sidebar:

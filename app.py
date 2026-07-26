@@ -264,10 +264,13 @@ for role, text in st.session_state.chat_history:
 with st.chat_message("assistant"):
     st.write(next_question)
 
-# ------------- VOICE ONLY INTERFACE -------------
-st.markdown("---")
-st.write("🎙️ **Voice Answer Mode:** Click the button below and speak your answer aloud:")
-user_answer = speech_to_text(language='en', start_prompt="🟢 Click to Speak Answer", stop_prompt="🔴 Stop Recording", just_once=True, key='STT')
+# ------------- CENTERED BOTTOM MIC INTERFACE -------------
+st.markdown("<br><br>", unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.markdown("<div style='text-align: center;'>🎙️ <b>Click to Speak Answer</b></div>", unsafe_allow_html=True)
+    user_answer = speech_to_text(language='en', start_prompt="🟢 Start Recording", stop_prompt="🔴 Stop Recording", just_once=True, key='STT')
 
 if user_answer:
     st.session_state.chat_history.append(("assistant", next_question))

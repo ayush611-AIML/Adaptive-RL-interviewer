@@ -1,9 +1,9 @@
-import sqlite3
-import random
-import antigravity # Taking flight!
 import streamlit as st
 import torch
 import numpy as np
+import sqlite3
+import random
+import base64
 from agent import InterviewDQN
 from llm import grade_answer
 
@@ -21,68 +21,69 @@ if "mu" not in st.session_state:
     st.session_state.sigma = 3.0
     st.session_state.questions_asked = 0
     st.session_state.chat_history = []
-
-# Track asked questions so we don't repeat them
-if "asked_question_ids" not in st.session_state:
     st.session_state.asked_question_ids = []
-
-question_bank = {
-    0: "Tier 1: Basic question",
-    1: "Tier 2: Intermediate question",
-    2: "Tier 3: Advanced question"
-}
 
 def fetch_question(tier):
     conn = sqlite3.connect('questions.db')
     cursor = conn.cursor()
     
-    # Fetch all questions for the target tier
     cursor.execute("SELECT id, question_text FROM questions WHERE tier = ?", (tier,))
     all_questions = cursor.fetchall()
     conn.close()
     
-    # Filter out questions we have already asked
     available_questions = [q for q in all_questions if q[0] not in st.session_state.asked_question_ids]
     
     if not available_questions:
         return "We have run out of questions for this difficulty level!"
         
-    # Pick a random question from the available ones
     selected_question = random.choice(available_questions)
-    
-    # Record the ID so we don't ask it again
     st.session_state.asked_question_ids.append(selected_question[0])
     
     return f"Tier {tier}: {selected_question[1]}"
 
-# --- NEW BACKGROUND STYLING CODE ---
-def set_custom_background():
-    st.markdown(
-        """
-        <style>
-        /* Apply a dark, modern gradient background to the main app area */
-        .stApp {
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-            color: #f8fafc;
-        }
-        
-        /* Make the sidebar slightly transparent to blend with the background */
-        [data-testid="stSidebar"] {
-            background-color: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(10px);
-        }
-        
-        /* Style the chat input box to look more polished */
-        .stChatInputContainer {
-            background-color: rgba(30, 41, 59, 0.7) !important;
-            border: 1px solid #334155 !important;
-            border-radius: 12px;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
 st.title("RL Interviewer")
+
+# ------------- LOCAL IMAGE BACKGROUND -------------
+def set_local_background(image_path):
+    try:
+        with open(image_path, "rb") as image_file:
+            # Encode the local image into base64
+            encoded_string = base64.b64encode(image_file.read()).decode()
+            
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                /* Updated to handle WEBP type */
+                background-image: url(data:image/webp;base64,{encoded_string});
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+            }}
+            
+            [data-testid="stAppViewContainer"] {{
+                background-color: rgba(15, 23, 42, 0.75); 
+            }}
+            
+            [data-testid="stSidebar"] {{
+                background-color: rgba(15, 23, 42, 0.85); 
+                backdrop-filter: blur(10px);
+            }}
+            
+            h1, h2, h3, p, label {{
+                color: white !important;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+    except FileNotFoundError:
+        st.error(f"Could not find the background image at: {image_path}")
+
+# Pointing to the hidden .webp extension
+set_local_background("tech_bg.png.webp") 
+# -------------------------------------------------------
 
 with st.sidebar:
     st.header("Brain State")
@@ -90,10 +91,8 @@ with st.sidebar:
     st.metric("Uncertainty (σ)", f"{st.session_state.sigma:.2f}")
     st.metric("Questions Asked", st.session_state.questions_asked)
 
-# Predict next question
 current_state = torch.FloatTensor([[st.session_state.mu, st.session_state.sigma, st.session_state.questions_asked]])
-# Only fetch a new question if the user just answered the previous one, 
-# or if it's the very first question.
+
 if len(st.session_state.chat_history) % 2 == 0:
     with torch.no_grad():
         action = agent(current_state).argmax().item()

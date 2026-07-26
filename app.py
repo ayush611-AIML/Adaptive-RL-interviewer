@@ -23,23 +23,30 @@ if "mu" not in st.session_state:
     st.session_state.chat_history = []
     st.session_state.asked_question_ids = []
 
-def fetch_question(tier):
+# Fetch function now requires the selected subject
+def fetch_question(tier, subject):
     conn = sqlite3.connect('questions.db')
     cursor = conn.cursor()
     
-    cursor.execute("SELECT id, question_text FROM questions WHERE tier = ?", (tier,))
+    try:
+        # Try to pull questions matching BOTH the tier and the subject
+        cursor.execute("SELECT id, question_text FROM questions WHERE tier = ? AND subject = ?", (tier, subject))
+    except sqlite3.OperationalError:
+        # Fallback just in case the database hasn't been updated yet
+        cursor.execute("SELECT id, question_text FROM questions WHERE tier = ?", (tier,))
+        
     all_questions = cursor.fetchall()
     conn.close()
     
     available_questions = [q for q in all_questions if q[0] not in st.session_state.asked_question_ids]
     
     if not available_questions:
-        return "We have run out of questions for this difficulty level!"
+        return f"We have run out of {subject} questions for this difficulty level!"
         
     selected_question = random.choice(available_questions)
     st.session_state.asked_question_ids.append(selected_question[0])
     
-    return f"Tier {tier}: {selected_question[1]}"
+    return f"Tier {tier} ({subject}): {selected_question[1]}"
 
 st.title("RL Interviewer")
 
@@ -123,6 +130,12 @@ def set_premium_background():
             backdrop-filter: blur(10px);
         }
         
+        /* Dropdown styling */
+        .stSelectbox label {
+            color: #00e5ff !important;
+            font-weight: bold;
+        }
+        
         p, div {
             color: #e2e8f0;
         }
@@ -138,10 +151,7 @@ def add_particle_effect():
     components.html(
         """
         <script>
-            // We inject the canvas into the parent window so it covers the whole Streamlit app
             const parentDoc = window.parent.document;
-            
-            // Only add the canvas if it doesn't already exist (prevents duplicates on reload)
             if (!parentDoc.getElementById("quantum-particles")) {
                 const canvas = parentDoc.createElement("canvas");
                 canvas.id = "quantum-particles";
@@ -150,14 +160,13 @@ def add_particle_effect():
                 canvas.style.left = "0";
                 canvas.style.width = "100vw";
                 canvas.style.height = "100vh";
-                canvas.style.pointerEvents = "none"; // Allows clicking through the canvas
+                canvas.style.pointerEvents = "none";
                 canvas.style.zIndex = "99999";
                 parentDoc.body.appendChild(canvas);
 
                 const ctx = canvas.getContext("2d");
                 let particlesArray = [];
                 
-                // Adjust canvas size to window
                 function resize() {
                     canvas.width = window.parent.innerWidth;
                     canvas.height = window.parent.innerHeight;
@@ -167,11 +176,9 @@ def add_particle_effect():
 
                 const mouse = { x: undefined, y: undefined };
                 
-                // Track mouse movement
                 window.parent.addEventListener("mousemove", function(event) {
                     mouse.x = event.x;
                     mouse.y = event.y;
-                    // Spawn 4 particles every time the mouse moves
                     for (let i = 0; i < 4; i++) { 
                         particlesArray.push(new Particle());
                     }
@@ -181,16 +188,14 @@ def add_particle_effect():
                     constructor() {
                         this.x = mouse.x;
                         this.y = mouse.y;
-                        this.size = Math.random() * 4 + 1; // Random size
-                        this.speedX = Math.random() * 3 - 1.5; // Spread out X
-                        this.speedY = Math.random() * 3 - 1.5; // Spread out Y
-                        // 50/50 chance for Cyan or Purple to match the theme
+                        this.size = Math.random() * 4 + 1;
+                        this.speedX = Math.random() * 3 - 1.5;
+                        this.speedY = Math.random() * 3 - 1.5;
                         this.color = Math.random() > 0.5 ? '#00e5ff' : '#b026ff';
                     }
                     update() {
                         this.x += this.speedX;
                         this.y += this.speedY;
-                        // Shrink over time
                         if (this.size > 0.1) this.size -= 0.05;
                     }
                     draw() {
@@ -205,8 +210,6 @@ def add_particle_effect():
                     for (let i = 0; i < particlesArray.length; i++) {
                         particlesArray[i].update();
                         particlesArray[i].draw();
-                        
-                        // Remove particle when it gets too small
                         if (particlesArray[i].size <= 0.1) {
                             particlesArray.splice(i, 1);
                             i--;
@@ -232,6 +235,34 @@ add_particle_effect()
 # -----------------------------------------------------------
 
 with st.sidebar:
+    st.header("Settings")
+    # New dropdown menu featuring all topics from the syllabus
+    selected_subject = st.selectbox("Interview Subject", [
+        "DSA", 
+        "OOP", 
+        "DBMS", 
+        "Operating System", 
+        "Computer Networks", 
+        "System Design", 
+        "Programming Languages", 
+        "Software Engineering", 
+        "Web Development", 
+        "Projects", 
+        "Machine Learning", 
+        "HR Questions"
+    ])
+    
+    # Allow the user to reset the interview if they change subjects
+    if st.button("🔄 Reset Interview"):
+        st.session_state.mu = 0.0
+        st.session_state.sigma = 3.0
+        st.session_state.questions_asked = 0
+        st.session_state.chat_history = []
+        st.session_state.asked_question_ids = []
+        st.rerun()
+
+    st.markdown("---")
+    
     st.header("Brain State")
     st.metric("Estimated Skill (μ)", f"{st.session_state.mu:.2f}")
     st.metric("Uncertainty (σ)", f"{st.session_state.sigma:.2f}")
@@ -243,7 +274,8 @@ if len(st.session_state.chat_history) % 2 == 0:
     with torch.no_grad():
         action = agent(current_state).argmax().item()
     
-    st.session_state.current_question = fetch_question(action)
+    # Pass the selected subject into the fetch function
+    st.session_state.current_question = fetch_question(action, selected_subject)
 
 next_question = st.session_state.current_question
 

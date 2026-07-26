@@ -127,6 +127,23 @@ def set_premium_background():
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
             margin-bottom: 15px;
         }
+
+        /* Custom Styling for Mic Recorder Button */
+        div.row-widget.stButton > button {
+            background: rgba(10, 10, 20, 0.8) !important;
+            border: 1px solid rgba(0, 229, 255, 0.4) !important;
+            color: #00e5ff !important;
+            border-radius: 30px !important;
+            padding: 10px 25px !important;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.2) !important;
+            transition: all 0.3s ease;
+        }
+        
+        div.row-widget.stButton > button:hover {
+            background: rgba(0, 229, 255, 0.1) !important;
+            border-color: #00e5ff !important;
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.4) !important;
+        }
         
         p, div {
             color: #e2e8f0;
@@ -264,13 +281,13 @@ for role, text in st.session_state.chat_history:
 with st.chat_message("assistant"):
     st.write(next_question)
 
-# ------------- CENTERED BOTTOM MIC INTERFACE -------------
-st.markdown("<br><br>", unsafe_allow_html=True)
+# ------------- STYLISH CENTERED MIC RECORDER BUTTON -------------
+st.markdown("<br>", unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     st.markdown("<div style='text-align: center;'>🎙️ <b>Click to Speak Answer</b></div>", unsafe_allow_html=True)
-    user_answer = speech_to_text(language='en', start_prompt="🟢 Start Recording", stop_prompt="🔴 Stop Recording", just_once=True, key='STT')
+    user_answer = speech_to_text(language='en', start_prompt="🎙️ Start Recording", stop_prompt="⏹️ Stop Recording", just_once=True, key='STT')
 
 if user_answer:
     st.session_state.chat_history.append(("assistant", next_question))

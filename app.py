@@ -6,8 +6,9 @@ import random
 import init_db
 from agent import InterviewDQN
 from llm import grade_answer
+from streamlit_mic_recorder import speech_to_text
 
-# Safely initialize database on startup without strict resource caching conflicts
+# Safely initialize database on startup
 try:
     init_db.setup_database()
 except Exception:
@@ -84,7 +85,6 @@ def set_premium_background():
             border-right: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* Fix select box text visibility & dropdown menu */
         .stSelectbox div[data-baseweb="select"] div, 
         div[data-baseweb="popover"] div {
             color: #ffffff !important;
@@ -126,14 +126,6 @@ def set_premium_background():
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
             margin-bottom: 15px;
-        }
-
-        .stChatInputContainer {
-            background: rgba(10, 10, 20, 0.7) !important;
-            border: 1px solid rgba(0, 229, 255, 0.3) !important;
-            border-radius: 20px !important;
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.1) !important;
-            backdrop-filter: blur(10px);
         }
         
         p, div {
@@ -235,7 +227,6 @@ add_particle_effect()
 # -----------------------------------------------------------
 
 with st.sidebar:
-    # Moved Subject Selection to the top left sidebar
     selected_subject = st.selectbox(
         "Select Subject", 
         [
@@ -273,7 +264,10 @@ for role, text in st.session_state.chat_history:
 with st.chat_message("assistant"):
     st.write(next_question)
 
-user_answer = st.chat_input("Type your answer here...")
+# ------------- VOICE ONLY INTERFACE -------------
+st.markdown("---")
+st.write("🎙️ **Voice Answer Mode:** Click the button below and speak your answer aloud:")
+user_answer = speech_to_text(language='en', start_prompt="🟢 Click to Speak Answer", stop_prompt="🔴 Stop Recording", just_once=True, key='STT')
 
 if user_answer:
     st.session_state.chat_history.append(("assistant", next_question))

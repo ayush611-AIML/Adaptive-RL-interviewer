@@ -65,11 +65,17 @@ def set_premium_background():
         [data-testid="stHeader"], 
         [data-testid="stAppViewContainer"], 
         [data-testid="stBottom"],
+        [data-testid="stBottomBlock"],
         .stApp > header,
         .stAppBottom,
         footer {
             background-color: transparent !important;
             background: transparent !important;
+        }
+        
+        /* Aggressively target the inner chat container background */
+        div[data-testid="stBottom"] > * {
+            background-color: transparent !important;
         }
 
         /* Glassmorphism sidebar */

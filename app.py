@@ -7,7 +7,6 @@ import init_db
 from agent import InterviewDQN
 from llm import grade_answer
 
-# Force database setup on startup to ensure all subjects are always available
 @st.cache_resource
 def init_app():
     init_db.setup_database()
@@ -33,7 +32,6 @@ if "mu" not in st.session_state:
 def fetch_question(tier, subject):
     conn = sqlite3.connect('questions.db')
     cursor = conn.cursor()
-    # Strict filtering by both difficulty tier and selected subject
     cursor.execute("SELECT id, question_text FROM questions WHERE tier = ? AND subject = ?", (tier, subject))
     available = [q for q in cursor.fetchall() if q[0] not in st.session_state.asked_question_ids]
     conn.close()
@@ -84,6 +82,17 @@ def set_premium_background():
             background-color: rgba(20, 15, 40, 0.4) !important;
             backdrop-filter: blur(20px) !important;
             border-right: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Fix select box text visibility & dropdown menu */
+        .stSelectbox div[data-baseweb="select"] div, 
+        div[data-baseweb="popover"] div {
+            color: #ffffff !important;
+        }
+
+        div[data-baseweb="popover"] {
+            background-color: #171033 !important;
+            border: 1px solid rgba(0, 229, 255, 0.2) !important;
         }
 
         [data-testid="stMetricValue"] {

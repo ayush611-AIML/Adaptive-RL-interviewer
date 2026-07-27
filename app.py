@@ -39,7 +39,8 @@ def fetch_question(tier, subject):
     conn.close()
     
     if not available:
-        return f"We have run out of questions for {subject} at this difficulty level!"
+        tier_name = ["Easy", "Medium", "Hard"][tier]
+        return f"We have run out of {tier_name} questions for {subject}!"
         
     sel = random.choice(available)
     st.session_state.asked_question_ids.append(sel[0])
@@ -108,7 +109,8 @@ def set_premium_background():
         }
 
         .stSelectbox div[data-baseweb="select"] div, 
-        div[data-baseweb="popover"] div {
+        div[data-baseweb="popover"] div,
+        .stRadio label {
             color: #ffffff !important;
         }
 
@@ -269,6 +271,14 @@ with st.sidebar:
         ]
     )
     
+    # Add manual difficulty selector for all subjects EXCEPT HR
+    if selected_subject != "HR Questions":
+        manual_tier = st.radio(
+            "Select Difficulty",
+            options=[0, 1, 2],
+            format_func=lambda x: ["Easy", "Medium", "Hard"][x]
+        )
+    
     if st.button("🔄 Reset Interview"):
         st.session_state.update(mu=0.0, sigma=3.0, questions_asked=0, chat_history=[], asked_question_ids=[], last_spoken="")
         st.rerun()
@@ -283,9 +293,15 @@ current_state = torch.FloatTensor([[st.session_state.mu, st.session_state.sigma,
 
 if len(st.session_state.chat_history) % 2 == 0:
     with torch.no_grad():
-        action = agent(current_state).argmax().item()
+        rl_action = agent(current_state).argmax().item()
     
-    st.session_state.current_question = fetch_question(action, selected_subject)
+    # Decide which tier to use based on the subject
+    if selected_subject != "HR Questions":
+        final_tier = manual_tier
+    else:
+        final_tier = rl_action
+    
+    st.session_state.current_question = fetch_question(final_tier, selected_subject)
 
 next_question = st.session_state.current_question
 
@@ -317,7 +333,6 @@ if st.session_state.last_spoken != next_question:
 # ------------- THEMED QUANTUM MIC COMPONENT & FORM -------------
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Wrap input in a form to ensure reliable submission
 with st.form("voice_form", clear_on_submit=True):
     spoken_text = st.text_input("Spoken Answer:", key="spoken_input_bridge", label_visibility="collapsed")
     submitted = st.form_submit_button("Submit")
@@ -336,7 +351,6 @@ components.html(
             cursor: pointer; box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
             transition: all 0.3s ease; position: relative;">
             
-            <!-- Cyberpunk Cyan & Purple Themed Mic Icon -->
             <svg viewBox="0 0 24 24" width="36" height="36">
                 <path fill="#00e5ff" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
                 <path fill="#b026ff" d="M11 18.92h2V22h-2z"/>
@@ -371,19 +385,16 @@ components.html(
                 const speechToText = event.results[0][0].transcript;
                 const parentDoc = window.parent.document;
                 
-                // Locate the hidden Streamlit input field
                 const textInput = parentDoc.querySelector('input[aria-label="Spoken Answer:"]');
                 
                 if (textInput) {
-                    // Force the value into the React input
                     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
                     nativeInputValueSetter.call(textInput, speechToText);
                     textInput.dispatchEvent(new Event('input', { bubbles: true }));
                     
-                    // Locate the hidden form submit button and click it to submit to Python
                     const submitBtn = parentDoc.querySelector('[data-testid="stFormSubmitButton"] button');
                     if (submitBtn) {
-                        setTimeout(() => submitBtn.click(), 200); // 200ms delay ensures React registers the text first
+                        setTimeout(() => submitBtn.click(), 200);
                     }
                 }
             };

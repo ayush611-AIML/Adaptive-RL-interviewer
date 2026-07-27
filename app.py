@@ -6,7 +6,6 @@ import random
 import init_db
 from agent import InterviewDQN
 from llm import grade_answer
-from streamlit_mic_recorder import speech_to_text
 
 # Safely initialize database on startup
 try:
@@ -30,7 +29,8 @@ if "mu" not in st.session_state:
     st.session_state.questions_asked = 0
     st.session_state.chat_history = []
     st.session_state.asked_question_ids = []
-    st.session_state.last_spoken = ""  # Tracks which question the AI just spoke
+    st.session_state.last_spoken = ""
+    st.session_state.spoken_input_bridge = ""
 
 def fetch_question(tier, subject):
     conn = sqlite3.connect('questions.db', timeout=10)
@@ -45,6 +45,29 @@ def fetch_question(tier, subject):
     sel = random.choice(available)
     st.session_state.asked_question_ids.append(sel[0])
     return sel[1]
+
+# ------------- ANSWER PROCESSING CALLBACK -------------
+def handle_voice_submission():
+    user_ans = st.session_state.spoken_input_bridge
+    if user_ans and len(user_ans.strip()) > 0:
+        # Save Q & A
+        st.session_state.chat_history.append(("assistant", st.session_state.current_question))
+        st.session_state.chat_history.append(("user", user_ans))
+        
+        # Grade and adjust brain state
+        score = grade_answer(st.session_state.current_question, user_ans)
+        learning_rate = 0.5 * st.session_state.sigma
+        
+        if score > 0.5:
+            st.session_state.mu += learning_rate * (1 - score)
+        else:
+            st.session_state.mu -= learning_rate * (1 - score)
+            
+        st.session_state.sigma *= 0.8
+        st.session_state.questions_asked += 1
+        
+        # Clear the input bridge to prevent duplicate submissions
+        st.session_state.spoken_input_bridge = ""
 
 st.title("RL Interviewer")
 
@@ -240,7 +263,7 @@ with st.sidebar:
     )
     
     if st.button("🔄 Reset Interview"):
-        st.session_state.update(mu=0.0, sigma=3.0, questions_asked=0, chat_history=[], asked_question_ids=[], last_spoken="")
+        st.session_state.update(mu=0.0, sigma=3.0, questions_asked=0, chat_history=[], asked_question_ids=[], last_spoken="", spoken_input_bridge="")
         st.rerun()
 
     st.markdown("---")
@@ -267,26 +290,18 @@ with st.chat_message("assistant"):
     st.write(next_question)
 
 # ------------- AI TEXT-TO-SPEECH (TTS) ENGINE -------------
-# Only speak the question if it hasn't been spoken yet to avoid repeating on every rerun
 if st.session_state.last_spoken != next_question:
     st.session_state.last_spoken = next_question
-    
-    # Clean the text of quotes to prevent breaking the javascript
     clean_question = next_question.replace('"', '').replace("'", "")
     
     tts_js = f"""
     <script>
         const parentDoc = window.parent;
-        // Stop any currently playing audio
         parentDoc.speechSynthesis.cancel();
-        
-        // Create new speech request
         const msg = new SpeechSynthesisUtterance("{clean_question}");
         msg.lang = 'en-US';
-        msg.rate = 1.0;  // Adjust speed (0.5 to 2.0)
-        msg.pitch = 1.0; // Adjust pitch (0 to 2)
-        
-        // Speak!
+        msg.rate = 1.0;  
+        msg.pitch = 1.0; 
         parentDoc.speechSynthesis.speak(msg);
     </script>
     """
@@ -295,7 +310,8 @@ if st.session_state.last_spoken != next_question:
 # ------------- THEMED QUANTUM MIC COMPONENT -------------
 st.markdown("<br>", unsafe_allow_html=True)
 
-voice_result = st.text_input("Spoken Answer:", key="spoken_input_bridge", label_visibility="collapsed")
+# Tied to the handle_voice_submission callback to process automatically
+st.text_input("Spoken Answer:", key="spoken_input_bridge", label_visibility="collapsed", on_change=handle_voice_submission)
 
 components.html(
     """
@@ -331,8 +347,6 @@ components.html(
 
             recognition.onstart = function() {
                 isListening = true;
-                
-                // Mute the AI speaking if the user clicks the mic early
                 window.parent.speechSynthesis.cancel();
                 
                 document.getElementById("mic-btn").style.borderColor = "#b026ff";
@@ -345,9 +359,23 @@ components.html(
                 const speechToText = event.results[0][0].transcript;
                 const parentDoc = window.parent.document;
                 const textInput = parentDoc.querySelector('input[aria-label="Spoken Answer:"]');
+                
                 if (textInput) {
-                    textInput.value = speechToText;
+                    // React native value setter bypass to force update
+                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    nativeInputValueSetter.call(textInput, speechToText);
+                    
+                    // Dispatch input event to update visual state
                     textInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    
+                    // Simulate ENTER key to submit to Streamlit backend
+                    textInput.dispatchEvent(new KeyboardEvent('keydown', {
+                        key: 'Enter',
+                        code: 'Enter',
+                        keyCode: 13,
+                        which: 13,
+                        bubbles: true
+                    }));
                 }
             };
 
@@ -382,21 +410,3 @@ components.html(
     """,
     height=140,
 )
-
-if voice_result and len(voice_result.strip()) > 0:
-    user_answer = voice_result
-    st.session_state.chat_history.append(("assistant", next_question))
-    st.session_state.chat_history.append(("user", user_answer))
-    
-    score = grade_answer(next_question, user_answer)
-    learning_rate = 0.5 * st.session_state.sigma
-    
-    if score > 0.5:
-        st.session_state.mu += learning_rate * (1 - score)
-    else:
-        st.session_state.mu -= learning_rate * (1 - score)
-        
-    st.session_state.sigma *= 0.8
-    st.session_state.questions_asked += 1
-    
-    st.rerun()

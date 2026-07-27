@@ -30,7 +30,6 @@ if "mu" not in st.session_state:
     st.session_state.chat_history = []
     st.session_state.asked_question_ids = []
     st.session_state.last_spoken = ""
-    st.session_state.spoken_input_bridge = ""
 
 def fetch_question(tier, subject):
     conn = sqlite3.connect('questions.db', timeout=10)
@@ -46,9 +45,8 @@ def fetch_question(tier, subject):
     st.session_state.asked_question_ids.append(sel[0])
     return sel[1]
 
-# ------------- ANSWER PROCESSING CALLBACK -------------
-def handle_voice_submission():
-    user_ans = st.session_state.spoken_input_bridge
+# ------------- ANSWER PROCESSING LOGIC -------------
+def handle_voice_submission(user_ans):
     if user_ans and len(user_ans.strip()) > 0:
         # Save Q & A
         st.session_state.chat_history.append(("assistant", st.session_state.current_question))
@@ -66,8 +64,7 @@ def handle_voice_submission():
         st.session_state.sigma *= 0.8
         st.session_state.questions_asked += 1
         
-        # Clear the input bridge to prevent duplicate submissions
-        st.session_state.spoken_input_bridge = ""
+        st.rerun()
 
 st.title("RL Interviewer")
 
@@ -151,6 +148,16 @@ def set_premium_background():
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
             margin-bottom: 15px;
+        }
+        
+        /* HIDE FORM BORDERS AND SUBMIT BUTTON */
+        [data-testid="stForm"] {
+            border: none !important;
+            padding: 0 !important;
+            background: transparent !important;
+        }
+        [data-testid="stFormSubmitButton"] {
+            display: none !important;
         }
         
         p, div {
@@ -263,7 +270,7 @@ with st.sidebar:
     )
     
     if st.button("🔄 Reset Interview"):
-        st.session_state.update(mu=0.0, sigma=3.0, questions_asked=0, chat_history=[], asked_question_ids=[], last_spoken="", spoken_input_bridge="")
+        st.session_state.update(mu=0.0, sigma=3.0, questions_asked=0, chat_history=[], asked_question_ids=[], last_spoken="")
         st.rerun()
 
     st.markdown("---")
@@ -307,11 +314,16 @@ if st.session_state.last_spoken != next_question:
     """
     components.html(tts_js, height=0, width=0)
 
-# ------------- THEMED QUANTUM MIC COMPONENT -------------
+# ------------- THEMED QUANTUM MIC COMPONENT & FORM -------------
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Tied to the handle_voice_submission callback to process automatically
-st.text_input("Spoken Answer:", key="spoken_input_bridge", label_visibility="collapsed", on_change=handle_voice_submission)
+# Wrap input in a form to ensure reliable submission
+with st.form("voice_form", clear_on_submit=True):
+    spoken_text = st.text_input("Spoken Answer:", key="spoken_input_bridge", label_visibility="collapsed")
+    submitted = st.form_submit_button("Submit")
+
+    if submitted and spoken_text:
+        handle_voice_submission(spoken_text)
 
 components.html(
     """
@@ -358,24 +370,21 @@ components.html(
             recognition.onresult = function(event) {
                 const speechToText = event.results[0][0].transcript;
                 const parentDoc = window.parent.document;
+                
+                // Locate the hidden Streamlit input field
                 const textInput = parentDoc.querySelector('input[aria-label="Spoken Answer:"]');
                 
                 if (textInput) {
-                    // React native value setter bypass to force update
+                    // Force the value into the React input
                     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
                     nativeInputValueSetter.call(textInput, speechToText);
-                    
-                    // Dispatch input event to update visual state
                     textInput.dispatchEvent(new Event('input', { bubbles: true }));
                     
-                    // Simulate ENTER key to submit to Streamlit backend
-                    textInput.dispatchEvent(new KeyboardEvent('keydown', {
-                        key: 'Enter',
-                        code: 'Enter',
-                        keyCode: 13,
-                        which: 13,
-                        bubbles: true
-                    }));
+                    // Locate the hidden form submit button and click it to submit to Python
+                    const submitBtn = parentDoc.querySelector('[data-testid="stFormSubmitButton"] button');
+                    if (submitBtn) {
+                        setTimeout(() => submitBtn.click(), 200); // 200ms delay ensures React registers the text first
+                    }
                 }
             };
 

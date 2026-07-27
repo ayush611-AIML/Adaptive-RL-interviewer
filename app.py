@@ -6,6 +6,7 @@ import random
 import init_db
 from agent import InterviewDQN
 from llm import grade_answer
+from streamlit_mic_recorder import speech_to_text
 
 # Safely initialize database on startup
 try:
@@ -22,12 +23,14 @@ def load_model():
 
 agent = load_model()
 
+# Initialize session states
 if "mu" not in st.session_state:
     st.session_state.mu = 0.0
     st.session_state.sigma = 3.0
     st.session_state.questions_asked = 0
     st.session_state.chat_history = []
     st.session_state.asked_question_ids = []
+    st.session_state.last_spoken = ""  # Tracks which question the AI just spoke
 
 def fetch_question(tier, subject):
     conn = sqlite3.connect('questions.db', timeout=10)
@@ -237,7 +240,7 @@ with st.sidebar:
     )
     
     if st.button("🔄 Reset Interview"):
-        st.session_state.update(mu=0.0, sigma=3.0, questions_asked=0, chat_history=[], asked_question_ids=[])
+        st.session_state.update(mu=0.0, sigma=3.0, questions_asked=0, chat_history=[], asked_question_ids=[], last_spoken="")
         st.rerun()
 
     st.markdown("---")
@@ -262,6 +265,32 @@ for role, text in st.session_state.chat_history:
 
 with st.chat_message("assistant"):
     st.write(next_question)
+
+# ------------- AI TEXT-TO-SPEECH (TTS) ENGINE -------------
+# Only speak the question if it hasn't been spoken yet to avoid repeating on every rerun
+if st.session_state.last_spoken != next_question:
+    st.session_state.last_spoken = next_question
+    
+    # Clean the text of quotes to prevent breaking the javascript
+    clean_question = next_question.replace('"', '').replace("'", "")
+    
+    tts_js = f"""
+    <script>
+        const parentDoc = window.parent;
+        // Stop any currently playing audio
+        parentDoc.speechSynthesis.cancel();
+        
+        // Create new speech request
+        const msg = new SpeechSynthesisUtterance("{clean_question}");
+        msg.lang = 'en-US';
+        msg.rate = 1.0;  // Adjust speed (0.5 to 2.0)
+        msg.pitch = 1.0; // Adjust pitch (0 to 2)
+        
+        // Speak!
+        parentDoc.speechSynthesis.speak(msg);
+    </script>
+    """
+    components.html(tts_js, height=0, width=0)
 
 # ------------- THEMED QUANTUM MIC COMPONENT -------------
 st.markdown("<br>", unsafe_allow_html=True)
@@ -302,6 +331,10 @@ components.html(
 
             recognition.onstart = function() {
                 isListening = true;
+                
+                // Mute the AI speaking if the user clicks the mic early
+                window.parent.speechSynthesis.cancel();
+                
                 document.getElementById("mic-btn").style.borderColor = "#b026ff";
                 document.getElementById("mic-btn").style.boxShadow = "0 0 25px rgba(176, 38, 255, 0.6)";
                 document.getElementById("status-text").innerText = "Listening... Speak now";
